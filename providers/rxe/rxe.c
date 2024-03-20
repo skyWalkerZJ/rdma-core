@@ -1600,9 +1600,13 @@ static int post_one_send(struct rxe_qp *qp, struct rxe_wq *sq,
 	unsigned int length = 0;
 	int i;
 
+	printf("priority is %d\n",ibwr->priority);
 	for (i = 0; i < ibwr->num_sge; i++)
 		length += ibwr->sg_list[i].length;
 
+	//splite large WR into many small WRs
+
+	
 	err = validate_send_wr(qp, ibwr, length);
 	if (err) {
 		verbs_err(verbs_get_ctx(qp->vqp.qp.context),
@@ -1610,8 +1614,50 @@ static int post_one_send(struct rxe_qp *qp, struct rxe_wq *sq,
 		return err;
 	}
 
-	wqe = (struct rxe_send_wqe *)producer_addr(sq->queue);
-
+	int producerIndex = load_producer_index(sq->queue);
+	int cousumerIndex = load_consumer_index(sq->queue);
+	printf("producerIndex is %d,cousumerIndex is %d\n",producerIndex,cousumerIndex);
+	// 计算队列当前已使用的元素个数
+    uint32_t count = (producerIndex - cousumerIndex) & sq->queue->index_mask;
+	printf("there were %d comment\n",count);
+	int maxSize = sq->queue->index_mask + 1;
+    // 如果队列已满，则无法入队
+    if (count == maxSize) {
+        printf("Queue is full\n");
+        return -1;
+    }
+	int offsetindex;
+	if(count < 2)
+	{
+		offsetindex = count;
+		wqe = (struct rxe_send_wqe *)producer_addr(sq->queue);
+		pcq.data[producerIndex] = ibwr->priority;
+		printf("data[%d] is %d\n",producerIndex,ibwr->priority);
+	}else if(pcq.data[(producerIndex - 1) & sq->queue->index_mask] >= ibwr->priority)
+	{
+		wqe = (struct rxe_send_wqe *)producer_addr(sq->queue);
+		pcq.data[producerIndex] = ibwr->priority;
+	}
+	else{
+		// 查找插入位置，根据优先级从高到低排列
+		for (offsetindex = count - 1; offsetindex > 0; offsetindex--) {
+			uint32_t current_index = (cousumerIndex + offsetindex) & sq->queue->index_mask;
+			
+			if (pcq.data[current_index] < ibwr->priority) {
+				// 否则，将当前元素后移一个位置
+				printf("pcq.data[current_index] < ibwr->priority\n");
+				void * source = sq->queue->data + ((current_index&sq->queue->index_mask) << sq->queue->log2_elem_size);
+				void * dest = sq->queue->data + (((current_index + 1)&sq->queue->index_mask) << sq->queue->log2_elem_size);
+				memcpy(dest,source, (1 << sq->queue->log2_elem_size));
+				//16 wr at most!
+				pcq.data[(current_index + 1) & 31] = pcq.data[(current_index) & 31];
+				pcq.data[(current_index) & 31] = ibwr->priority;
+				wqe = (struct rxe_send_wqe *)source;
+			}else{
+				break;
+			}
+		}
+	}
 	err = init_send_wqe(qp, sq, ibwr, length, wqe);
 	if (err)
 		return err;
@@ -1657,6 +1703,7 @@ static int rxe_post_send(struct ibv_qp *ibqp,
 			 struct ibv_send_wr *wr_list,
 			 struct ibv_send_wr **bad_wr)
 {
+	printf("===========rxe_post_send=============\n");
 	int rc = 0;
 	int err;
 	struct rxe_qp *qp = to_rqp(ibqp);
@@ -1682,7 +1729,16 @@ static int rxe_post_send(struct ibv_qp *ibqp,
 		wr_list = wr_list->next;
 	}
 
+	//check the queue about priority
 	pthread_spin_unlock(&sq->lock);
+
+	int producerIndex = load_producer_index(sq->queue);
+	int cousumerIndex = load_consumer_index(sq->queue);
+
+	for(int i = cousumerIndex; i < producerIndex; i++)
+	{
+		printf("the %d priority is %d\n",i,pcq.data[i]);
+	}
 
 	err =  post_send_db(ibqp);
 	return err ? err : rc;
