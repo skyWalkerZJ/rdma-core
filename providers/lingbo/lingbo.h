@@ -33,8 +33,8 @@
  * SOFTWARE.
  */
 
-#ifndef lingbo_H
-#define lingbo_H
+#ifndef LINGBO_H
+#define LINGBO_H
 
 #include <infiniband/driver.h>
 #include <sys/socket.h>
