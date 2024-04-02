@@ -60,7 +60,7 @@
 static void lingbo_free_context(struct ibv_context *ibctx);
 
 static const struct verbs_match_ent hca_table[] = {
-	VERBS_DRIVER_ID(RDMA_DRIVER_lingbo),
+	VERBS_DRIVER_ID(RDMA_DRIVER_LINGBO),
 	VERBS_NAME_MATCH("lingbo", NULL),
 	{},
 };
@@ -405,14 +405,14 @@ static struct ibv_cq *lingbo_create_cq(struct ibv_context *context, int cqe,
 }
 
 enum lingbo_sup_wc_flags {
-	lingbo_SUP_WC_FLAGS	= IBV_WC_EX_WITH_BYTE_LEN
+	LINGBO_SUP_WC_FLAGS	= IBV_WC_EX_WITH_BYTE_LEN
 				| IBV_WC_EX_WITH_IMM
 				| IBV_WC_EX_WITH_QP_NUM
 				| IBV_WC_EX_WITH_SRC_QP
 				| IBV_WC_EX_WITH_SLID
 				| IBV_WC_EX_WITH_SL
 				| IBV_WC_EX_WITH_DLID_PATH_BITS,
-	lingbo_SUP_WC_EX_FLAGS	= lingbo_SUP_WC_FLAGS,
+	LINGBO_SUP_WC_EX_FLAGS	= LINGBO_SUP_WC_FLAGS,
 				// add extended flags here
 };
 
@@ -424,7 +424,7 @@ static struct ibv_cq_ex *lingbo_create_cq_ex(struct ibv_context *context,
 	struct ulingbo_create_cq_ex_resp resp = {};
 
 	/* user is asking for flags we don't support */
-	if (attr->wc_flags & ~lingbo_SUP_WC_EX_FLAGS) {
+	if (attr->wc_flags & ~LINGBO_SUP_WC_EX_FLAGS) {
 		errno = EOPNOTSUPP;
 		goto err;
 	}
@@ -1271,12 +1271,12 @@ err:
 }
 
 enum {
-	lingbo_QP_CREATE_FLAGS_SUP = 0,
+	LINGBO_QP_CREATE_FLAGS_SUP = 0,
 
-	lingbo_QP_COMP_MASK_SUP = IBV_QP_INIT_ATTR_PD |
+	LINGBO_QP_COMP_MASK_SUP = IBV_QP_INIT_ATTR_PD |
 		IBV_QP_INIT_ATTR_CREATE_FLAGS | IBV_QP_INIT_ATTR_SEND_OPS_FLAGS,
 
-	lingbo_SUP_RC_QP_SEND_OPS_FLAGS =
+	LINGBO_SUP_RC_QP_SEND_OPS_FLAGS =
 		IBV_QP_EX_WITH_RDMA_WRITE | IBV_QP_EX_WITH_RDMA_WRITE_WITH_IMM |
 		IBV_QP_EX_WITH_SEND | IBV_QP_EX_WITH_SEND_WITH_IMM |
 		IBV_QP_EX_WITH_RDMA_READ | IBV_QP_EX_WITH_ATOMIC_CMP_AND_SWP |
@@ -1284,36 +1284,36 @@ enum {
 		IBV_QP_EX_WITH_BIND_MW | IBV_QP_EX_WITH_SEND_WITH_INV |
 		IBV_QP_EX_WITH_FLUSH | IBV_QP_EX_WITH_ATOMIC_WRITE,
 
-	lingbo_SUP_UC_QP_SEND_OPS_FLAGS =
+	LINGBO_SUP_UC_QP_SEND_OPS_FLAGS =
 		IBV_QP_EX_WITH_RDMA_WRITE | IBV_QP_EX_WITH_RDMA_WRITE_WITH_IMM |
 		IBV_QP_EX_WITH_SEND | IBV_QP_EX_WITH_SEND_WITH_IMM |
 		IBV_QP_EX_WITH_BIND_MW | IBV_QP_EX_WITH_SEND_WITH_INV,
 
-	lingbo_SUP_UD_QP_SEND_OPS_FLAGS =
+	LINGBO_SUP_UD_QP_SEND_OPS_FLAGS =
 		IBV_QP_EX_WITH_SEND | IBV_QP_EX_WITH_SEND_WITH_IMM,
 };
 
 static int check_qp_init_attr(struct ibv_qp_init_attr_ex *attr)
 {
-	if (attr->comp_mask & ~lingbo_QP_COMP_MASK_SUP)
+	if (attr->comp_mask & ~LINGBO_QP_COMP_MASK_SUP)
 		goto err;
 
 	if ((attr->comp_mask & IBV_QP_INIT_ATTR_CREATE_FLAGS) &&
-	    (attr->create_flags & ~lingbo_QP_CREATE_FLAGS_SUP))
+	    (attr->create_flags & ~LINGBO_QP_CREATE_FLAGS_SUP))
 		goto err;
 
 	if (attr->comp_mask & IBV_QP_INIT_ATTR_SEND_OPS_FLAGS) {
 		switch (attr->qp_type) {
 		case IBV_QPT_RC:
-			if (attr->send_ops_flags & ~lingbo_SUP_RC_QP_SEND_OPS_FLAGS)
+			if (attr->send_ops_flags & ~LINGBO_SUP_RC_QP_SEND_OPS_FLAGS)
 				goto err;
 			break;
 		case IBV_QPT_UC:
-			if (attr->send_ops_flags & ~lingbo_SUP_UC_QP_SEND_OPS_FLAGS)
+			if (attr->send_ops_flags & ~LINGBO_SUP_UC_QP_SEND_OPS_FLAGS)
 				goto err;
 			break;
 		case IBV_QPT_UD:
-			if (attr->send_ops_flags & ~lingbo_SUP_UD_QP_SEND_OPS_FLAGS)
+			if (attr->send_ops_flags & ~LINGBO_SUP_UD_QP_SEND_OPS_FLAGS)
 				goto err;
 			break;
 		default:
@@ -1600,13 +1600,9 @@ static int post_one_send(struct lingbo_qp *qp, struct lingbo_wq *sq,
 	unsigned int length = 0;
 	int i;
 
-	printf("priority is %d\n",ibwr->priority);
 	for (i = 0; i < ibwr->num_sge; i++)
 		length += ibwr->sg_list[i].length;
 
-	//splite large WR into many small WRs
-
-	
 	err = validate_send_wr(qp, ibwr, length);
 	if (err) {
 		verbs_err(verbs_get_ctx(qp->vqp.qp.context),
@@ -1614,50 +1610,8 @@ static int post_one_send(struct lingbo_qp *qp, struct lingbo_wq *sq,
 		return err;
 	}
 
-	int producerIndex = load_producer_index(sq->queue);
-	int cousumerIndex = load_consumer_index(sq->queue);
-	printf("producerIndex is %d,cousumerIndex is %d\n",producerIndex,cousumerIndex);
-	// 计算队列当前已使用的元素个数
-    uint32_t count = (producerIndex - cousumerIndex) & sq->queue->index_mask;
-	printf("there were %d comment\n",count);
-	int maxSize = sq->queue->index_mask + 1;
-    // 如果队列已满，则无法入队
-    if (count == maxSize) {
-        printf("Queue is full\n");
-        return -1;
-    }
-	int offsetindex;
-	if(count < 2)
-	{
-		offsetindex = count;
-		wqe = (struct lingbo_send_wqe *)producer_addr(sq->queue);
-		pcq.data[producerIndex] = ibwr->priority;
-		printf("data[%d] is %d\n",producerIndex,ibwr->priority);
-	}else if(pcq.data[(producerIndex - 1) & sq->queue->index_mask] >= ibwr->priority)
-	{
-		wqe = (struct lingbo_send_wqe *)producer_addr(sq->queue);
-		pcq.data[producerIndex] = ibwr->priority;
-	}
-	else{
-		// 查找插入位置，根据优先级从高到低排列
-		for (offsetindex = count - 1; offsetindex > 0; offsetindex--) {
-			uint32_t current_index = (cousumerIndex + offsetindex) & sq->queue->index_mask;
-			
-			if (pcq.data[current_index] < ibwr->priority) {
-				// 否则，将当前元素后移一个位置
-				printf("pcq.data[current_index] < ibwr->priority\n");
-				void * source = sq->queue->data + ((current_index&sq->queue->index_mask) << sq->queue->log2_elem_size);
-				void * dest = sq->queue->data + (((current_index + 1)&sq->queue->index_mask) << sq->queue->log2_elem_size);
-				memcpy(dest,source, (1 << sq->queue->log2_elem_size));
-				//16 wr at most!
-				pcq.data[(current_index + 1) & 31] = pcq.data[(current_index) & 31];
-				pcq.data[(current_index) & 31] = ibwr->priority;
-				wqe = (struct lingbo_send_wqe *)source;
-			}else{
-				break;
-			}
-		}
-	}
+	wqe = (struct lingbo_send_wqe *)producer_addr(sq->queue);
+
 	err = init_send_wqe(qp, sq, ibwr, length, wqe);
 	if (err)
 		return err;
@@ -1703,7 +1657,6 @@ static int lingbo_post_send(struct ibv_qp *ibqp,
 			 struct ibv_send_wr *wr_list,
 			 struct ibv_send_wr **bad_wr)
 {
-	printf("===========lingbo_post_send=============\n");
 	int rc = 0;
 	int err;
 	struct lingbo_qp *qp = to_rqp(ibqp);
@@ -1731,14 +1684,6 @@ static int lingbo_post_send(struct ibv_qp *ibqp,
 
 	//check the queue about priority
 	pthread_spin_unlock(&sq->lock);
-
-	int producerIndex = load_producer_index(sq->queue);
-	int cousumerIndex = load_consumer_index(sq->queue);
-
-	for(int i = cousumerIndex; i < producerIndex; i++)
-	{
-		printf("the %d priority is %d\n",i,pcq.data[i]);
-	}
 
 	err =  post_send_db(ibqp);
 	return err ? err : rc;
@@ -1817,8 +1762,8 @@ static int lingbo_create_av(struct lingbo_ah *ah, struct ibv_pd *pd,
 	memcpy(&av->grh, &attr->grh, sizeof(attr->grh));
 
 	ret = ipv6_addr_v4mapped((struct in6_addr *)attr->grh.dgid.raw);
-	av->network_type = ret ? lingbo_NETWORK_TYPE_IPV4 :
-				 lingbo_NETWORK_TYPE_IPV6;
+	av->network_type = ret ? LINGBO_NETWORK_TYPE_IPV4 :
+				 LINGBO_NETWORK_TYPE_IPV6;
 
 	rdma_gid2ip(&av->sgid_addr, &sgid);
 	rdma_gid2ip(&av->dgid_addr, &attr->grh.dgid);
@@ -1924,7 +1869,7 @@ static struct verbs_context *lingbo_alloc_context(struct ibv_device *ibdev,
 	struct ib_uverbs_get_context_resp resp;
 
 	context = verbs_init_and_alloc_context(ibdev, cmd_fd, context, ibv_ctx,
-					       RDMA_DRIVER_lingbo);
+					       RDMA_DRIVER_LINGBO);
 	if (!context)
 		return NULL;
 

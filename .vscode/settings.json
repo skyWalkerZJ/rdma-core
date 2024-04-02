@@ -1,0 +1,15 @@
+{
+    "files.associations": {
+        "rdma_user_lingbo.h": "c",
+        "rxe.h": "c",
+        "driver.h": "c",
+        "lingbo.h": "c",
+        "rxe-abi.h": "c",
+        "lingbo_queue.h": "c",
+        "lingbo-abi.h": "c",
+        "socket.h": "c",
+        "rdma_user_rxe.h": "c",
+        "kern-abi.h": "c",
+        "rxe_trace.h": "c"
+    }
+}

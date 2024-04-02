@@ -31,8 +31,8 @@
  * SOFTWARE.
  */
 
-#ifndef RDMA_USER_lingbo_H
-#define RDMA_USER_lingbo_H
+#ifndef RDMA_USER_RXE_H
+#define RDMA_USER_RXE_H
 
 #include <linux/types.h>
 #include <linux/socket.h>
@@ -40,8 +40,8 @@
 #include <linux/in6.h>
 
 enum {
-	lingbo_NETWORK_TYPE_IPV4 = 1,
-	lingbo_NETWORK_TYPE_IPV6 = 2,
+	LINGBO_NETWORK_TYPE_IPV4 = 1,
+	LINGBO_NETWORK_TYPE_IPV6 = 2,
 };
 
 union lingbo_gid {
@@ -62,7 +62,7 @@ struct lingbo_global_route {
 
 struct lingbo_av {
 	__u8			port_num;
-	/* From lingbo_NETWORK_TYPE_* */
+	/* From RXE_NETWORK_TYPE_* */
 	__u8			network_type;
 	__u8			dmac[6];
 	struct lingbo_global_route	grh;
@@ -228,4 +228,4 @@ struct lingbo_queue_buf {
 	__u8			data[];
 };
 
-#endif /* RDMA_USER_lingbo_H */
+#endif /* RDMA_USER_RXE_H */

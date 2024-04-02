@@ -1151,7 +1151,6 @@ struct ibv_send_wr {
 	uint64_t		wr_id;
 	struct ibv_send_wr     *next;
 	struct ibv_sge	       *sg_list;
-	int 					priority;
 	int			num_sge;
 	enum ibv_wr_opcode	opcode;
 	unsigned int		send_flags;

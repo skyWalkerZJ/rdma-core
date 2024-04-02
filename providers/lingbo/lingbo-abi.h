@@ -32,8 +32,8 @@
  *
  */
 
-#ifndef lingbo_ABI_H
-#define lingbo_ABI_H
+#ifndef LINGBO_ABI_H
+#define LINGBO_ABI_H
 
 #include <infiniband/kern-abi.h>
 #include <rdma/rdma_user_lingbo.h>

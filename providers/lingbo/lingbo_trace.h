@@ -11,8 +11,8 @@
 #undef LTTNG_UST_TRACEPOINT_INCLUDE
 #define LTTNG_UST_TRACEPOINT_INCLUDE "lingbo_trace.h"
 
-#if !defined(__lingbo_TRACE_H__) || defined(LTTNG_UST_TRACEPOINT_HEADER_MULTI_READ)
-#define __lingbo_TRACE_H__
+#if !defined(__LINGBO_TRACE_H__) || defined(LTTNG_UST_TRACEPOINT_HEADER_MULTI_READ)
+#define __LINGBO_TRACE_H__
 
 #include <lttng/tracepoint.h>
 #include <infiniband/verbs.h>
@@ -49,8 +49,8 @@ LTTNG_UST_TRACEPOINT_EVENT(
 
 #else
 
-#ifndef __lingbo_TRACE_H__
-#define __lingbo_TRACE_H__
+#ifndef __LINGBO_TRACE_H__
+#define __LINGBO_TRACE_H__
 
 #define rdma_tracepoint(arg...)
 

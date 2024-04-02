@@ -34,8 +34,8 @@
 
 /* implements a simple circular buffer with sizes a power of 2 */
 
-#ifndef H_lingbo_QUEUE
-#define H_lingbo_QUEUE
+#ifndef H_LINGBO_QUEUE
+#define H_LINGBO_QUEUE
 
 #include <stdint.h>
 #include <stdatomic.h>
@@ -211,4 +211,4 @@ err:
 	return qp->err;
 }
 
-#endif /* H_lingbo_QUEUE */
+#endif /* H_LINGBO_QUEUE */
