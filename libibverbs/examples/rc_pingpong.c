@@ -37,9 +37,9 @@ static struct ibv_mr  *server_mr = NULL;
 static struct ibv_port_attr     portinfo;
 struct server_metadata local_metadata,remote_metadata;
 
-static struct ibv_send_wr client_send_wr, client_send_wr1,client_send_wr2,*bad_client_send_wr = NULL;
+static struct ibv_send_wr client_send_wr, client_send_wr1,client_send_wr2,client_send_wr3,client_send_wr4,*bad_client_send_wr = NULL;
 static struct ibv_recv_wr server_recv_wr, *bad_server_recv_wr = NULL;
-static struct ibv_sge  client_send_sge, server_recv_sge,client_send_sge1,client_send_sge2;
+static struct ibv_sge  client_send_sge, server_recv_sge,client_send_sge1,client_send_sge2,client_send_sge3,client_send_sge4;
 /* Source and Destination buffers, where RDMA operations source and sink */
 char *src = NULL, *dst = NULL; 
 
@@ -109,10 +109,10 @@ int client_prepare_connection()
          * The capacity here is define statically but this can be probed from the 
 	 * device. We just use a small number as defined in rdma_common.h */
        bzero(&qp_init_attr, sizeof qp_init_attr);
-       qp_init_attr.cap.max_recv_sge = 16; /* Maximum SGE per receive posting */
-       qp_init_attr.cap.max_recv_wr = 16; /* Maximum receive posting capacity */
-       qp_init_attr.cap.max_send_sge = 16; /* Maximum SGE per send posting */
-       qp_init_attr.cap.max_send_wr = 16; /* Maximum send posting capacity */
+       qp_init_attr.cap.max_recv_sge = 32; /* Maximum SGE per receive posting */
+       qp_init_attr.cap.max_recv_wr = 32; /* Maximum receive posting capacity */
+       qp_init_attr.cap.max_send_sge = 32; /* Maximum SGE per send posting */
+       qp_init_attr.cap.max_send_wr = 32; /* Maximum send posting capacity */
        qp_init_attr.qp_type = IBV_QPT_RC; /* QP type, RC = Reliable connection */
        /* We use same completion queue, but one can use different queues */
        qp_init_attr.recv_cq = client_cq; /* Where should I notify for receive completion operations */
@@ -158,14 +158,14 @@ int client_xchange_metadata_with_server(int sockfd)
     //2) register memory to store the data from server
     //exchange memory info with server
     int page_size = sysconf(_SC_PAGESIZE);
-    src = malloc(sizeof(char)*1024);
+    src = malloc(sizeof(char)*8000);
 	//src = memalign(page_size,1024+40);
     if(!src)
     {
         printf("could't allocate work buf\n");
         return -1;
     }
-	dst = malloc(sizeof(char)*1024);
+	dst = malloc(sizeof(char)*8000);
     //dst = memalign(page_size,1024+40); 
     if(!dst)
     {
@@ -173,9 +173,9 @@ int client_xchange_metadata_with_server(int sockfd)
         return -1;
     }
 
-    memset(src,0x7b,1024);
-    memset(dst,0x6b,1024);
-    client_mr = ibv_reg_mr(pd, src, 1024, 
+    memset(src,0x7b,8000);
+    memset(dst,0x6b,8000);
+    client_mr = ibv_reg_mr(pd, src, 8000, 
 			(IBV_ACCESS_LOCAL_WRITE|
 			 IBV_ACCESS_REMOTE_READ|
 			 IBV_ACCESS_REMOTE_WRITE));
@@ -184,7 +184,7 @@ int client_xchange_metadata_with_server(int sockfd)
         return -1;
 	}
 
-    server_mr = ibv_reg_mr(pd,dst,1024,
+    server_mr = ibv_reg_mr(pd,dst,8000,
 			(IBV_ACCESS_LOCAL_WRITE|
 			 IBV_ACCESS_REMOTE_READ|
 			 IBV_ACCESS_REMOTE_WRITE));
@@ -236,7 +236,7 @@ int client_xchange_metadata_with_server(int sockfd)
     inet_pton(AF_INET6, remote_metadata.gid, &remotegid);
     struct ibv_qp_attr attr = {
 		.qp_state		= IBV_QPS_RTR,
-		.path_mtu		= IBV_MTU_256,
+		.path_mtu		= IBV_MTU_1024,
 		.dest_qp_num		= remote_metadata.qpn,
 		.rq_psn			= 0,
 		.max_dest_rd_atomic	= 1,
@@ -391,26 +391,21 @@ static int client_remote_memory_ops()
 	client_send_wr.send_flags = IBV_SEND_SIGNALED;
 	client_send_wr.wr.rdma.rkey = remote_metadata.lkey;
 	client_send_wr.wr.rdma.remote_addr = remote_metadata.addr;
-	client_send_wr.priority = 10;
-	
-	
-
+	client_send_wr.priority = 0;
 	client_send_wr.next = &client_send_wr1;
 	client_send_sge1.addr = (uint64_t) server_mr->addr;
 	client_send_sge1.length = (uint32_t) server_mr->length;
 	client_send_sge1.lkey = server_mr->lkey;
-	
 	bzero(&client_send_wr1, sizeof(client_send_wr1));
 	client_send_wr1.sg_list = &client_send_sge1;
 	client_send_wr1.num_sge = 1;
 	client_send_wr1.opcode = IBV_WR_RDMA_READ;
 	client_send_wr1.send_flags = IBV_SEND_SIGNALED;
-	
 	client_send_wr1.wr.rdma.rkey = remote_metadata.lkey;
 	client_send_wr1.wr.rdma.remote_addr = remote_metadata.addr;
-	client_send_wr1.priority = 20;
-
+	client_send_wr1.priority = 0;
 	client_send_wr1.next = & client_send_wr2;
+	
 	client_send_sge2.addr = (uint64_t) server_mr->addr;
 	client_send_sge2.length = (uint32_t) server_mr->length;
 	client_send_sge2.lkey = server_mr->lkey;
@@ -421,9 +416,35 @@ static int client_remote_memory_ops()
 	client_send_wr2.send_flags = IBV_SEND_SIGNALED;
 	client_send_wr2.wr.rdma.rkey = remote_metadata.lkey;
 	client_send_wr2.wr.rdma.remote_addr = remote_metadata.addr;
-	client_send_wr2.priority = 30;
+	client_send_wr2.priority = 0;
+	
+	client_send_wr2.next = & client_send_wr3;
+	client_send_sge3.addr = (uint64_t) server_mr->addr;
+	client_send_sge3.length = (uint32_t) server_mr->length;
+	client_send_sge3.lkey = server_mr->lkey;
+	bzero(&client_send_wr3, sizeof(client_send_wr3));
+	client_send_wr3.sg_list = &client_send_sge3;
+	client_send_wr3.num_sge = 1;
+	client_send_wr3.opcode = IBV_WR_RDMA_READ;
+	client_send_wr3.send_flags = IBV_SEND_SIGNALED;
+	client_send_wr3.wr.rdma.rkey = remote_metadata.lkey;
+	client_send_wr3.wr.rdma.remote_addr = remote_metadata.addr;
+	client_send_wr3.priority = 0;
 
-	printf("successful update priority\n");
+	client_send_wr3.next = & client_send_wr4;
+	client_send_sge4.addr = (uint64_t) server_mr->addr;
+	client_send_sge4.length = (uint32_t) server_mr->length;
+	client_send_sge4.lkey = server_mr->lkey;
+	bzero(&client_send_wr4, sizeof(client_send_wr4));
+	client_send_wr4.sg_list = &client_send_sge4;
+	client_send_wr4.num_sge = 1;
+	client_send_wr4.opcode = IBV_WR_RDMA_READ;
+	client_send_wr4.send_flags = IBV_SEND_SIGNALED;
+	client_send_wr4.wr.rdma.rkey = remote_metadata.lkey;
+	client_send_wr4.wr.rdma.remote_addr = remote_metadata.addr;
+	client_send_wr4.priority = 0;
+
+
 	/* Now we post it */
 	ret = ibv_post_send(client_qp, 
 		       &client_send_wr,
@@ -441,22 +462,21 @@ static int client_remote_memory_ops()
 	}
 	
     printf("Client side READ is complete \n");
-	/* Step 1: is to copy the local buffer into the remote buffer. We will 
-	 * reuse the previous variables. */
-	/* now we fill up SGE */
+
+	/*
 	client_send_sge.addr = (uint64_t) local_metadata.addr;
 	client_send_sge.length = (uint32_t) local_metadata.length;
 	client_send_sge.lkey = local_metadata.lkey;
-	/* now we link to the send work request */
+
 	bzero(&client_send_wr, sizeof(client_send_wr));
 	client_send_wr.sg_list = &client_send_sge;
 	client_send_wr.num_sge = 1;
 	client_send_wr.opcode = IBV_WR_RDMA_WRITE;
 	client_send_wr.send_flags = IBV_SEND_SIGNALED;
-	/* we have to tell server side info for RDMA */
+
 	client_send_wr.wr.rdma.rkey = remote_metadata.lkey;
 	client_send_wr.wr.rdma.remote_addr = remote_metadata.addr;
-	/* Now we post it */
+
 	ret = ibv_post_send(client_qp,
 		       &client_send_wr,
 	       &bad_client_send_wr);
@@ -464,14 +484,14 @@ static int client_remote_memory_ops()
 		printf("Failed to write client src buffer\n");
 		return -errno;
 	}
-	/* at this point we are expecting 1 work completion for the write */
+
 	ret = process_work_completion_events(io_completion_channel, 
 			&wc, 1);
 	if(ret != 1) {
 		printf("we failed to get 1 work completions\n");
 		return ret;
 	}
-
+	*/
     printf("Client side WRITE is complete \n");
 	/* Now we prepare a READ using same variables but for destination */
 	return 0;
@@ -515,4 +535,3 @@ int main(int argc, char **argv) {
 	sleep(10);
 	return ret;
 }
-
